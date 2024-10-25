@@ -1,0 +1,256 @@
+---
+title: "Sentiment Analysis"
+format: html
+editor: visual
+---
+
+# Libraries
+
+```{r, warning = FALSE, message = FALSE}
+library(janeaustenr)
+library(dplyr)
+library(stringr)
+library(tidytext)
+library(tibble)
+library(tidyverse)
+library(wordcloud)
+library(plotly)
+library(textdata)
+library(reshape2)
+```
+
+# Sentiment Analysis
+
+## Good Will Hunting
+
+### By Character - Word Clouds
+
+```{r, warning = FALSE, message = FALSE}
+gwh_lines <- readLines("data/good_will_hunting_script.txt")
+gwh_lines <- gwh_lines[gwh_lines != ""]
+gwh_lines <- gwh_lines <- trimws(gwh_lines)
+```
+
+```{r}
+gwh_script <- tibble(line_number = seq_along(gwh_lines), text = gwh_lines)
+
+gwh_script <- gwh_script %>%
+  mutate(is_character = str_detect(text, "^[A-Z\\s]+$"),   
+         character = if_else(is_character, text, NA_character_)) %>%
+  fill(character, .direction = "down") 
+
+gwh_dialogue <- gwh_script %>%
+  filter(!is_character & str_detect(text, "[a-z]")) %>% 
+  select(character, text) 
+```
+
+```{r}
+table(gwh_dialogue$character)
+```
+
+```{r, warning = FALSE, message = FALSE}
+gwh_words <- gwh_dialogue %>%
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words)
+
+gwh_counts <- gwh_words %>%
+  group_by(character, word) %>%
+  summarize(count = n()) %>%
+  arrange(desc(count))
+
+gwh_characters <- unique(gwh_counts$character)
+
+for (char in gwh_characters) {
+  gwh_char_words <- filter(gwh_counts, character == char)
+
+  if (nrow(gwh_char_words) == 0) {next}
+  
+  wordcloud(words = gwh_char_words$word, 
+            freq = gwh_char_words$count, 
+            max.words = 100, 
+            colors = brewer.pal(8, "Dark2"), 
+            scale = c(1.5, 0.5), 
+            random.order = FALSE)
+  
+  title(main = paste("Word Cloud for", char))}
+```
+
+### By Line - Using Bing
+
+```{r, warning = FALSE, message = FALSE}
+gwh_text_lines <- tibble(line = 1:length(gwh_lines), text = gwh_lines)
+
+gwh_text_lines <- gwh_text_lines %>%
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words) %>%
+  inner_join(get_sentiments("bing"), by = "word") %>%
+  count(line, sentiment) %>%
+  spread(sentiment, n, fill = 0) %>% 
+  mutate(sentiment = positive - negative) %>% 
+  mutate(category = case_when(
+    sentiment > 0 ~ "positive",
+    sentiment < 0 ~ "negative",
+    sentiment == 0 ~ "neutral"))
+
+gwh_by_line_viz <- ggplot(gwh_text_lines, aes(x = sentiment, fill = as.factor(line))) +
+  geom_bar(show.legend = FALSE) +
+  labs(title = "Sentiment Analysis - By Line", x = "Sentiment Score", y = "Count") +
+  theme_minimal()
+
+gwh_by_line_viz2 <- ggplot(gwh_text_lines, aes(x = category, fill = as.factor(sentiment))) +
+  geom_bar(show.legend = FALSE) +
+  labs(title = "Sentiment Analysis - By Line", x = "Sentiment Category", y = "Count") +
+  theme_minimal()
+
+ggplotly(gwh_by_line_viz)
+ggplotly(gwh_by_line_viz2)
+```
+
+### By Word - Using Bing
+
+```{r}
+gwh_text_words <- gwh_words %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  ungroup()
+
+gwh_text_words %>%
+  group_by(sentiment) %>%
+  slice_max(n, n = 10) %>% 
+  ungroup() %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(n, word, fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~sentiment, scales = "free_y") +
+  labs(title = "Sentiment Analysis - By Word", x = "Contribution to Sentiment", y = NULL)
+```
+
+### Using NRC
+
+```{r}
+get_sentiments("nrc")
+```
+
+#### Word Cloud - Using Bing
+
+```{r}
+gwh_text_words %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  acast(word ~ sentiment, value.var = "n", fill = 0) %>%
+  comparison.cloud(colors = c("black", "gray"), max.words = 100, scale = c(0.5, 0.5))
+```
+
+# Dead Poets Society
+
+### By Character - Word Clouds
+
+```{r, warning = FALSE, message = FALSE}
+dps_lines <- readLines("data/dead_poets_society_script.txt")
+dps_lines <- dps_lines[dps_lines != ""]
+dps_lines <- dps_lines <- trimws(dps_lines)
+```
+
+```{r}
+dps_script <- tibble(line_number = seq_along(dps_lines), text = dps_lines)
+
+dps_script <- dps_script %>%
+  mutate(is_character = str_detect(text, "^[A-Z\\s]+$"),   
+         character = if_else(is_character, text, NA_character_)) %>%
+  fill(character, .direction = "down") 
+
+dps_dialogue <- dps_script %>%
+  filter(!is_character & str_detect(text, "[a-z]")) %>% 
+  select(character, text) 
+```
+
+```{r}
+table(dps_dialogue$character)
+```
+
+```{r, warning = FALSE, message = FALSE}
+dps_words <- dps_dialogue %>%
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words)
+
+dps_counts <- dps_words %>%
+  group_by(character, word) %>%
+  summarize(count = n()) %>%
+  arrange(desc(count))
+
+dps_characters <- unique(dps_counts$character)
+
+for (char in dps_characters) {
+  dps_char_words <- filter(dps_counts, character == char)
+
+  if (nrow(dps_char_words) == 0) {next}
+  
+  wordcloud(words = dps_char_words$word, 
+            freq = dps_char_words$count, 
+            max.words = 100, 
+            colors = brewer.pal(8, "Dark2"), 
+            scale = c(1.5, 0.5), 
+            random.order = FALSE)
+  
+  title(main = paste("Word Cloud for", char))}
+```
+
+### By Line - Using Bing
+
+```{r, warning = FALSE, message = FALSE}
+dps_text_lines <- tibble(line = 1:length(dps_lines), text = dps_lines)
+
+dps_text_lines <- dps_text_lines %>%
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words) %>%
+  inner_join(get_sentiments("bing"), by = "word") %>%
+  count(line, sentiment) %>%
+  spread(sentiment, n, fill = 0) %>% 
+  mutate(sentiment = positive - negative) %>% 
+  mutate(category = case_when(
+    sentiment > 0 ~ "positive",
+    sentiment < 0 ~ "negative",
+    sentiment == 0 ~ "neutral"))
+
+dps_by_line_viz <- ggplot(dps_text_lines, aes(x = sentiment, fill = as.factor(line))) +
+  geom_bar(show.legend = FALSE) +
+  labs(title = "Sentiment Analysis - By Line", x = "Sentiment Score", y = "Count") +
+  theme_minimal()
+
+dps_by_line_viz2 <- ggplot(dps_text_lines, aes(x = category, fill = as.factor(sentiment))) +
+  geom_bar(show.legend = FALSE) +
+  labs(title = "Sentiment Analysis - By Line", x = "Sentiment Category", y = "Count") +
+  theme_minimal()
+
+ggplotly(dps_by_line_viz)
+ggplotly(dps_by_line_viz2)
+```
+
+### By Word - Using Bing
+
+```{r}
+dps_text_words <- dps_words %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  ungroup()
+
+dps_text_words %>%
+  group_by(sentiment) %>%
+  slice_max(n, n = 10) %>% 
+  ungroup() %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(n, word, fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~sentiment, scales = "free_y") +
+  labs(title = "Sentiment Analysis - By Word", x = "Contribution to Sentiment", y = NULL)
+```
+
+#### Word Cloud - Using Bing
+
+```{r}
+dps_text_words %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  acast(word ~ sentiment, value.var = "n", fill = 0) %>%
+  comparison.cloud(colors = c("black", "gray"), max.words = 100, scale = c(0.5, 0.5))
+```
