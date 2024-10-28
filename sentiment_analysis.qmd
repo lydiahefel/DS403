@@ -17,6 +17,7 @@ library(wordcloud)
 library(plotly)
 library(textdata)
 library(reshape2)
+library(remotes)
 ```
 
 # Sentiment Analysis
@@ -125,10 +126,24 @@ gwh_text_words %>%
   labs(title = "Sentiment Analysis - By Word", x = "Contribution to Sentiment", y = NULL)
 ```
 
-### Using NRC
+### By Word - Using NRC
 
 ```{r}
-get_sentiments("nrc")
+gwh_text_words_nrc <- gwh_words %>%
+  inner_join(get_sentiments("nrc")) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  ungroup()
+
+gwh_text_words_nrc %>%
+  group_by(sentiment) %>%
+  slice_max(n, n = 10) %>% 
+  ungroup() %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(n, word, fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~sentiment, scales = "free_y") +
+  labs(title = "Sentiment Analysis - By Word", x = "Contribution to Sentiment", y = NULL) +
+  theme(axis.text.y = element_text(size = 5))
 ```
 
 #### Word Cloud - Using Bing
@@ -243,6 +258,26 @@ dps_text_words %>%
   geom_col(show.legend = FALSE) +
   facet_wrap(~sentiment, scales = "free_y") +
   labs(title = "Sentiment Analysis - By Word", x = "Contribution to Sentiment", y = NULL)
+```
+
+### By Word - Using NRC
+
+```{r}
+dps_text_words_nrc <- dps_words %>%
+  inner_join(get_sentiments("nrc")) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  ungroup()
+
+dps_text_words_nrc %>%
+  group_by(sentiment) %>%
+  slice_max(n, n = 10) %>% 
+  ungroup() %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(n, word, fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~sentiment, scales = "free_y") +
+  labs(title = "Sentiment Analysis - By Word", x = "Contribution to Sentiment", y = NULL) +
+  theme(axis.text.y = element_text(size = 5))
 ```
 
 #### Word Cloud - Using Bing
